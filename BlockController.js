@@ -47,7 +47,7 @@ class BlockController{
                         this.removeValidationRequest(address)
                     }, reqObj.validationWindow * 1000);  
                 }
-                res.send(JSON.stringify(reqObj));
+                res.send(reqObj);
             }
         });
     }
@@ -78,7 +78,7 @@ class BlockController{
                     // clean up request object from mempool
                     delete this.mempool[address];
 
-                    res.send(JSON.stringify(validRequest));
+                    res.send(validRequest);
                 }else{
                     res.send({error: "Request object is not found"});
                 }
@@ -93,7 +93,7 @@ class BlockController{
                 if(block === undefined){
                     res.send({error:`Block was not found for height #${height}`});
                 }else{
-                    res.send(JSON.stringify(block));
+                    res.send(block);
                 }
             }).catch((err) => {
                 res.send({error:`Block of height #${height} was not found`});
@@ -108,7 +108,7 @@ class BlockController{
                 if(block === undefined){
                     res.send({error:`Block was not found for hash(${hash})`});
                 }else{
-                    res.send(JSON.stringify(block));
+                    res.send(block);
                 }
             }).catch((err) => {
                 res.send({error:`hash(${hash}) was not found`});
@@ -146,7 +146,7 @@ class BlockController{
                         let star = new Star.Star(body);
                         let newBlock = new BlockClass.Block(star);
                         blockChain.addBlock(newBlock).then((block) => {
-                            res.send(JSON.stringify(block));
+                            res.send(block);
                         }).catch((err) => {
                             res.send({error: err});
                         });
