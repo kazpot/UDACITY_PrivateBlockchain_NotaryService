@@ -107,6 +107,11 @@ class Blockchain{
             }
             const blockHash = block.hash;
             block.hash = "";
+
+            if(block.body && block.body.star && block.body.star.storyDecoded){
+                delete block.body.star.storyDecoded
+            }
+
             const validHash = SHA256(JSON.stringify(block)).toString();
             if (blockHash === validHash){
                 return true;
@@ -126,8 +131,8 @@ class Blockchain{
             const heights = await Array.from(Array(height).keys());
             for(let i=0; i<heights.length; i++){
                 let h = heights[i];
-                const result = await self.validateBlock(h);
-                if(!result){
+
+                if(!(await self.validateBlock(h))){
                     errorLog.push(`error validating block (height=${h})`);
                 }
 
