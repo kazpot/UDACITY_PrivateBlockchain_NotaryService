@@ -75,8 +75,11 @@ class BlockController{
                     this.mempoolValid.push(validRequest);
                     console.log(this.mempoolValid);
 
-                    // clean up request object from mempool
-                    delete this.mempool[address];
+                    // remove request object from mempool
+                    delete this.timeoutRequests[address];
+                    this.removeValidationRequest(address);
+                    console.log(this.timeoutRequests);
+                    console.log(this.mempool);
 
                     res.send(validRequest);
                 }else{
@@ -146,12 +149,17 @@ class BlockController{
                         let star = new Star.Star(body);
                         let newBlock = new BlockClass.Block(star);
                         blockChain.addBlock(newBlock).then((block) => {
+
+                            // Upon validation the user is granted access to register a single star
+                            this.removeValidation(address);
+                            console.log(this.mempoolValid);
+
                             res.send(block);
                         }).catch((err) => {
                             res.send({error: err});
                         });
                     }else{
-                        res.send({error: "Wallet address is not validated yet"});
+                        res.send({error: "You are not granted access to register a star"});
                     }
                 }
             }
@@ -161,6 +169,11 @@ class BlockController{
     removeValidationRequest(address){
         this.mempool.splice(this.mempool.findIndex(obj => obj.walletAddress === address), 1);
         console.log(`Request object has been removed from mempool - ${address}`);
+    }
+
+    removeValidation(address){
+        this.mempoolValid.splice(this.mempoolValid.findIndex(obj => obj.status.walletAddress === address), 1);
+        console.log(`Request object has been removed from mempoolValid - ${address}`);
     }
 
     setCuurentValidationWindow(reqObj){
