@@ -13,173 +13,136 @@ class Blockchain{
         this.generateGenesisBlock();
     }
 
-    generateGenesisBlock(){
+    async generateGenesisBlock(){
         const self = this;
-        self.getBlockHeight().then((height) => {
+        try{
+            const height = await self.getBlockHeight();
             if(height === 0){
-                self.addBlock(new Block.Block("Genesis block"))
-                .then((result) => {
-                    console.log(result);
-                }).catch((err) => {
-                    console.log(err);
-                });
+                const result = await self.addBlock(new Block.Block("Genesis block"));
+                coonsole.log(result);
             }
-        }).catch((err) => {
+        }catch(err){
             console.log(err);
-        });
+        }
     }
 
-    getBlockHeight() {
+    async getBlockHeight() {
         const self = this;
-        return new Promise((resolve, reject) => {
-            self.db.getBlocksCount().then((result) => {
-                resolve(result);
-            }).catch((err) => {
-                console.log(err);
-                reject(err);
-            });
-        });
+        try{
+            return await self.db.getBlocksCount();
+        }catch(err){
+            console.log(err);
+            throw err;
+        }
     }
 
-    getBlockByHash(hash) {
+    async getBlockByHash(hash) {
         const self = this;
-        return new Promise((resolve, reject) => {
-            self.db.getBlockByHash(hash).then((block) => {
-                resolve(block);
-            }).catch((err) => {
-                console.log(err);
-                reject(err);
-            });
-        });
+        try{
+            return await self.db.getBlockByHash(hash);
+        }catch(err){
+            console.log(err);
+            throw err;
+        }
     }
 
-    getBlockByWalletAddress(address) {
+    async getBlockByWalletAddress(address) {
         const self = this;
-        return new Promise((resolve, reject) => {
-            self.db.getBlockByWalletAddress(address).then((blocks) => {
-                resolve(blocks);
-            }).catch((err) => {
-                console.log(err);
-                reject(err);
-            });
-        });
+        try{
+            return await self.db.getBlockByWalletAddress(address);
+        }catch(err){
+            console.log(err);
+            throw err;
+        }
     }
-    
-    addBlock(newBlock){
-        const self = this;
-        return new Promise((resolve, reject) => {
-            self.getBlockHeight().then((height) => {
-                newBlock.time = new Date().getTime().toString().slice(0,-3);
 
-                // get prev block
-                self.getBlock(height - 1)
-                .then((prevBlock) => {
-                    // skip if there is no block or it is genesis block
-                    if(height > 0){
-                        newBlock.Height = height;
-                        newBlock.previousblockhash = prevBlock.hash;
+    async addBlock(newBlock){
+        const self = this;
+        try{
+            const height = await self.getBlockHeight();
+            newBlock.time = new Date().getTime().toString().slice(0,-3);
+
+            const prevBlock = await self.getBlock(height - 1);
+
+            // skip if there is no block or it is genesis block
+            if(height > 0){
+                newBlock.Height = height;
+                newBlock.previousblockhash = prevBlock.hash;
+            }
+
+            newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
+
+            const block = await self.db.addLevelDBData(height, JSON.stringify(newBlock).toString());
+            if(block === undefined){
+                throw Error ('Failed to store block to db');
+            }else{
+                return block;
+            }
+        }catch(err){
+            throw err;
+        }
+    }
+
+    async getBlock(height) {
+        const self = this;
+        try{
+            const block = await self.db.getLevelDBData(height);
+            if(block !== undefined){
+                return block;
+            }else{
+                return undefined;
+            }
+        }catch(err){
+            console.log(err);
+            throw err;
+        }
+    }
+
+    async validateBlock(height) {
+        const self = this;
+        try{
+            const block = await self.getBlock(height);
+            if(block === undefined){
+                throw Error("Error retrieving block");
+            }
+            const blockHash = block.hash;
+            block.hash = "";
+            const validHash = SHA256(JSON.stringify(block)).toString();
+            if (blockHash === validHash){
+                return true;
+            }else{
+                return false;
+            }
+        }catch(err){
+            throw err;
+        }
+    }
+
+    async validateChain() {
+        const self = this;
+        let errorLog = [];
+        try{
+            const height = await self.getBlockHeight();
+            const heights = await Array.from(Array(height).keys());
+            for(let i=0; i<heights.length; i++){
+                let h = heights[i];
+                const result = await self.validateBlock(h);
+                if(!result){
+                    errorLog.push(`error validating block (height=${h})`);
+                }
+
+                if(h < height - 1){
+                    const block = await self.getBlock(h);
+                    const nextBlock = await self.getBlock(h + 1);
+                    if(block.hash !== nextBlock.previousblockhash){
+                        errorLog.push(`error validating link (${h} and ${h+1})`);
                     }
-
-                    newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
-
-                    self.db.addLevelDBData(height, JSON.stringify(newBlock).toString())
-                    .then((block) => {
-                        if(block === undefined){
-                            reject(err);
-                        }else{
-                            resolve(block);
-                        }
-                    }).catch((err) => {
-                        reject(err);
-                    });
-                }).catch((err) => {
-                    reject(err);
-                });
-            }).catch((err) => {
-                reject(err);
-            });
-        });
-    }
-
-    getBlock(height) {
-        const self = this;
-        return new Promise((resolve, reject) => {
-            self.db.getLevelDBData(height).
-            then((block) => {
-                if(block !== undefined){
-                    resolve(block);
-                }else{
-                    resolve(undefined);
                 }
-            }).catch((err) => {
-                reject(err);
-            });
-        });
-    }
-
-    validateBlock(height) {
-        const self = this;
-        return new Promise((resolve, reject) => {
-            self.getBlock(height)
-            .then((block) => {
-                if(block === undefined){
-                    throw Error("Error retrieving block");
-                }
-                const blockHash = block.hash;
-                block.hash = "";
-                const validHash = SHA256(JSON.stringify(block)).toString();
-                if (blockHash === validHash){
-                    resolve(true);
-                }else{
-                    resolve(false);
-                }
-            }).catch((err) => {
-                console.log(err);
-            });
-        });
-    }
-
-    validateChain() {
-        const self = this;
-        let results = [];
-        return self.getBlockHeight().then((height) => {
-            const heights = Array.from(Array(height).keys());
-            return Promise.all(
-                heights.map((h) => 
-                    self.validateBlock(h)
-                    .then( (result) => {
-                        if(!result){
-                            results.push(`error validating block (height=${h})`);
-                        }
-                    }).then(() => {
-                        if(h < height - 1){
-                            return self.getBlock(h).then((block) => {
-                                return block;
-                            });
-                        }
-                    }).then((block) => {
-                        if(block !== undefined){
-                            return self.getBlock(h + 1).then((nextBlock) => {
-                                if(block.hash !== nextBlock.previousblockhash){
-                                    return `error validating link (${h} and ${h+1})`;
-                                }
-                            });
-                        }
-                    }).then((errorLog) => {
-                        if(errorLog !== undefined){
-                            results.push(errorLog);
-                        }
-                    })
-                    .catch(err => {
-                        console.log(err)
-                    })
-                )
-            ).then(() => {
-                return results;
-            });
-        }).catch((err) => {
-            console.log(err);
-        });
+            }
+            return errorLog;
+        }catch(err){
+            throw err;
+        }
     }
 
     _modifyBlock(height, block){

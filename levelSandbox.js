@@ -12,39 +12,38 @@ class LevelSandbox{
         this.db = level(chainDB);
     }
 
-    getLevelDBData(key){
+    async getLevelDBData(key){
         let self = this;
-        return new Promise((resolve, reject) => {
-            self.db.get(key, (err, value) => {
-                if(err){
-                    if(err.type == 'NotFoundError'){
-                        resolve(undefined);
-                    }else{
-                        console.log('Block ' + key + ' get failed', err);
-                        reject(err);
-                    }
-                }else{
-                    const block = JSON.parse(value);
-                    self.addStoryDecoded(block);
-                    resolve(block);
-                }
-            });
-        });
+        try{
+            const value = await self.db.get(key);
+            const block = JSON.parse(value);
+            if(block.body){
+                self.addStoryDecoded(block);
+            }
+            return block;
+        }catch(err){
+            if(err.type == 'NotFoundError'){
+                return undefined
+            }else{
+                console.log('Block ' + key + ' get failed', err);
+                throw err;
+            }
+        }
     }
 
-    addLevelDBData(key, value){
+    async addLevelDBData(key, value){
         let self = this;
-        return new Promise((resolve, reject) => {
-            self.db.put(key, value, (err) => {
-                if(err){
-                    console.log('Block ' + key + ' submission failed', err);
-                    reject(err);
-                }
-                const block = JSON.parse(value);
+        try{
+            await self.db.put(key, value);
+            const block = JSON.parse(value);
+            if(block.body){
                 self.addStoryDecoded(block);
-                resolve(block);
-            });
-        });
+            }
+            return block;
+        }catch(err){
+            console.log('Block ' + key + ' submission failed', err);
+            throw err;
+        }
     }
 
     getBlocksCount(){

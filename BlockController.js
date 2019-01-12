@@ -108,7 +108,7 @@ class BlockController{
         this.app.get("/stars/hash::hash", (req, res) => {
             const hash = req.params.hash;
             blockChain.getBlockByHash(hash).then((block) => {
-                if(block === undefined){
+                if(block === undefined || block === null){
                     res.send({error:`Block was not found for hash(${hash})`});
                 }else{
                     res.send(block);
